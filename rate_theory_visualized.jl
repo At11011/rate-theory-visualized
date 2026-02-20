@@ -29,7 +29,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ f5bc5f70-0a80-11f1-a259-8be415f4d105
-using PlutoUI, Handcalcs, GLMakie, Symbolics, Match, Latexify, Random, PhysicalConstants.CODATA2018, Unitful
+using PlutoUI, Handcalcs, CairoMakie, WGLMakie, Symbolics, Match, Latexify, Random, PhysicalConstants.CODATA2018, Unitful, GeometryBasics, Makie
 
 # ╔═╡ 6d0c96f2-4dfd-43a1-86af-e6aaa9b04f0c
 TableOfContents()
@@ -43,6 +43,14 @@ This document provides a detailed overview of the mathematics behind rate theory
 This theory can be used to develop a theoretical framework for many phenomena, including corrosion, as well as void nucleation.
 """
 
+# ╔═╡ 0dc3df3c-0999-4f9c-8e68-4b71a51d00ed
+wglmakieswitch = @bind wglmakie Switch(default=true);
+
+# ╔═╡ 45f0efff-bc20-49d3-8442-3948d82b6441
+md"""
+Use interactive visualizations: $wglmakieswitch
+"""
+
 # ╔═╡ 8b4c2f8f-6027-43f9-8bc2-d2fbd7cbf3ea
 md"""
 ## Einstein relation
@@ -50,8 +58,8 @@ md"""
 One of the easiest ways to represent diffusion is by the Einstein relation. This assumes that a particle diffusises randomly with no bias in any direction. It simply takes unit-length single steps in a random direction in 3D space. The graph below uses the following two sliders to render a given number of particles and steps to show what the Einstein relation looks like.
 """
 
-# ╔═╡ 507a59c7-9d1b-4f06-b520-0e6d04fe9f21
-step_slider = @bind steps PlutoUI.Slider(1:1:250; default=5, show_value=true);
+# ╔═╡ 1be863ee-0514-4de1-a0c4-9460cf2852c9
+step_slider = @bind steps PlutoUI.Slider(1:250; default=3, show_value=true);
 
 # ╔═╡ a0a819cd-7d17-4d61-a88d-a2a9fdd3e8ab
 particle_slider = @bind particles PlutoUI.Slider(1:100; default=1, show_value=true);
@@ -68,6 +76,12 @@ Number of particles = $particle_slider $(particles == 1 ? "particle" : "particle
 # ╔═╡ 48a4e303-921c-4b59-93a7-633f2f2cffb8
 # This is just plotting code, no need to show.
 begin
+	if wglmakie
+		WGLMakie.activate!()
+	else 
+		CairoMakie.activate!()
+	end
+	
 	f = Figure()
 	a = Axis3(f[1,1], title="Random Walk (Einstein Relation)")
 	for particle in 1:particles
@@ -140,6 +154,11 @@ There is no bias in any direction, so the values of each of the components are e
 # This is just plotting code, no need to show.
 # The plot is similar to the 3D one, but in 2D to make illustration easier.
 begin
+	if wglmakie
+		WGLMakie.activate!()
+	else 
+		CairoMakie.activate!()
+	end
 	Random.seed!(0)
 	f1 = Figure()
 	a1 = Axis(f1[1,1], title="Einstein relation in two dimensions")
@@ -273,8 +292,13 @@ Where $\Gamma_0$ is the number of "attempted" jumps, $E_m$ is the activation ene
 # ╔═╡ 51869391-d0e7-408a-9d8d-873afa01976c
 # Plotting code
 begin
+	if wglmakie
+		WGLMakie.activate!()
+	else 
+		CairoMakie.activate!()
+	end
 	fig = Figure()
-	ax = Axis(fig[1,1], title="Plot of Γ as a function of temperature")
+	ax = Axis(fig[1,1], xlabel = "Temperature (K)", ylabel = "Γ", title="Plot of Γ as a function of temperature")
 	ts = range(1, 1000, 100)u"K" # Temperature K
 	gamma_0 = 1e14 # jumps/s
 	k = BoltzmannConstant
@@ -322,27 +346,30 @@ Interstitials (atoms stuck between lattice sites in a crystal) diffuse randomly.
 # ╔═╡ ba5df24e-436b-4269-b355-8d52e7a00be2
 # Plotting code
 begin
-	fig2 = Figure()
-	axis = Axis(fig2[1,1], title="Interstitial Diffusion")
-	# Generate grid coordinates
-	x = 0:4
-	y = 0:4
-	
-	# Create all combinations using vec and repeat
-	x1 = vec([i for i in x, j in y])
-	y1 = vec([j for i in x, j in y])
-
-	y2 = [1.5]
-
-	record(fig2, "interstitial_diffusion.gif", 1:100, framerate=30) do i
-		empty!(axis)
-		scatter!(axis,  x1, y1, markersize=50)
+	function interstitial_diffusion()
+		CairoMakie.activate!()
+		fig = Figure()
+		axis = Axis(fig[1,1], title="Interstitial Diffusion")
+		xlims!(axis, -0.25, 4.25)
+		ylims!(axis, -0.25, 4.25)
+		# Generate grid coordinates
+		x1 = 0:4
+		y = 0:4
 		
-		offset = i > 50 ? ((100 - i) / 50) : i / 50
-		x2 = [1.5 + offset]
-		scatter!(axis, x2, y2, markersize=50)
+		# Create all combinations using vec and repeat
+		x = vec([i for i in x1, j in y])
+		y = vec([j for i in x1, j in y])
+	
+		record(fig, "interstitial_diffusion.gif", 1:100, framerate=30) do i
+			empty!(axis)
+			scatter!(axis,  x, y, markersize=50)
+			
+			offset = i > 50 ? ((100 - i) / 50) : i / 50
+			scatter!(axis, [1.5 + offset], [1.5], markersize=50)
+		end
+		LocalResource("interstitial_diffusion.gif")
 	end
-	LocalResource("interstitial_diffusion.gif")
+	interstitial_diffusion()
 end
 
 # ╔═╡ 63cd3890-db15-4239-9fae-0e8565f8a7ac
@@ -371,71 +398,89 @@ Note that this simplified model does not account for vacancies returning to thei
 # ╔═╡ 891ace0a-83b4-4f85-b571-ad19969aea22
 # Plotting code
 begin
-	fig3 = Figure()
-	axis3 = Axis(fig3[1,1], title="Vacancy Diffusion (1/Z) case")
+	function vacancy_diffusion()
+	CairoMakie.activate!()
+	fig = Figure()
+	axis = Axis(fig[1,1], title="Vacancy Diffusion (1/Z) case")
+	
+	xlims!(axis, -0.25, 4.25)
+	ylims!(axis, -0.25, 4.25)
+
+	x1 = 0:4
+	y = 0:4
 	
 	# Create all combinations using vec and repeat
-	x3 = vec([i for i in x, j in y])
-	y3 = vec([j for i in x, j in y])
+	x = vec([i for i in x1, j in y])
+	y = vec([j for i in x1, j in y])
 
-	x3 = deleteat!(x3, [13, 14])
-	y3 = deleteat!(y3, [13, 14])
+	x = deleteat!(x, [13, 14])
+	y = deleteat!(y, [13, 14])
 	
-
-	y3_alt = [2]
-
-	record(fig3, "vacancy_diffusion.gif", 1:100, framerate=30) do i
-		empty!(axis3)
-		scatter!(axis3,  x3, y3, markersize=50)
+	record(fig, "vacancy_diffusion.gif", 1:100, framerate=30) do i
+		empty!(axis)
+		scatter!(axis,  x, y, markersize=50)
 		
 		offset = i > 50 ? ((100 - i) / 50) : i / 50
-		x3_alt = [2 + offset]
-		scatter!(axis3, x3_alt, y3_alt, markersize=50)
-		text!(axis3, x3_alt, [y3_alt[1] + 0.2], text = "Trace Atom")
+		x2 = [2 + offset]
+		scatter!(axis, x2, [2], markersize=50)
+		text!(axis, x2, [2.2], text = "Trace Atom")
+		text!(axis, [3 - offset], [1.8], text = "Vacancy")
+		
 	end
 	LocalResource("vacancy_diffusion.gif")
+	end
+	vacancy_diffusion()
 end
 
 # ╔═╡ c1a1aa76-1b8d-4abf-a697-83d9ffab3875
 # Plotting code
 begin
-	fig4 = Figure()
-	axis4 = Axis(fig4[1,1], title="Vacancy Diffusion (Z-1)/Z case")
+	function vacancy_diffusion_alt()
+		CairoMakie.activate!()
+		fig = Figure()
+		axis = Axis(fig[1,1], title="Vacancy Diffusion (Z-1)/Z case")
 	
-	# Create all combinations using vec and repeat
-	x4 = vec([i for i in x, j in y])
-	y4 = vec([j for i in x, j in y])
-
-	x4 = deleteat!(x4, [13, 14, 18])
-	y4 = deleteat!(y4, [13, 14, 18])
+		xlims!(axis, -0.25, 4.25)
+		ylims!(axis, -0.25, 4.25)
+			
+		x1 = 0:4
+		y = 0:4
+			
+		# Create all combinations using vec and repeat
+		x = vec([i for i in x1, j in y])
+		y = vec([j for i in x1, j in y])
 	
-
-	local y4_alt = [2]
-
-	record(fig4, "vacancy_diffusion_alt.gif", 1:150, framerate=30) do i
-		empty!(axis4)
-		scatter!(axis4,  x4, y4, markersize=50)
-
-		if i < 50
-		offset = i / 50
-		x4_alt = [2 + offset]
-		scatter!(axis4, x4_alt, y4_alt, markersize=50)
-		text!(axis4, x4_alt, [y4_alt[1] + 0.2], text = "Trace Atom")
-		scatter!(axis4, [2], [3], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
-		elseif i < 100
-			offset = (i - 50) / 50
-			x4_alt = [2]
-			y4_alt = [3 - offset]
-			scatter!(axis4, [3], [2], markersize=50)
-			text!(axis4, [3], [2.2], text = "Trace Atom")
-			scatter!(axis4, x4_alt, y4_alt, markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
-		else
-			scatter!(axis4, [3], [2], markersize=50)
-			text!(axis4, [3], [2.2], text = "Trace Atom")
-			scatter!(axis4, [2], [2], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+		x = deleteat!(x, [13, 14, 18])
+		y = deleteat!(y, [13, 14, 18])
+	
+		record(fig, "vacancy_diffusion_alt.gif", 1:150, framerate=30) do i
+			empty!(axis)
+			scatter!(axis,  x, y, markersize=50)
+	
+			if i < 50
+				offset = i / 50
+				x2 = [2 + offset]
+				scatter!(axis, x2, [2], markersize=50)
+				text!(axis, x2, [2.2], text = "Trace Atom")
+				text!(axis, [3 - offset], [1.8], text = "Vacancy")
+				scatter!(axis, [2], [3], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+			elseif i < 100
+				offset = (i - 50) / 50
+				y2 = [3 - offset]
+				scatter!(axis, [3], [2], markersize=50)
+				text!(axis, [3], [2.2], text = "Trace Atom")
+				text!(axis, [2], [1.8 + offset], text = "Vacancy")
+				scatter!(axis, [2], y2, markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+			else
+				scatter!(axis, [3], [2], markersize=50)
+				text!(axis, [3], [2.2], text = "Trace Atom")
+				text!(axis, [2], [2.8], text = "Vacancy")
+				scatter!(axis, [2], [2], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+			end
 		end
-	end
-	LocalResource("vacancy_diffusion_alt.gif")
+		LocalResource("vacancy_diffusion_alt.gif")
+		end
+	vacancy_diffusion_alt()
 end
 
 
@@ -455,49 +500,59 @@ where $\lambda^2 = \frac{D_m}{r}$ is the mean square distance an atom diffuses w
 # ╔═╡ afc0732f-f49a-4b27-ade6-88e0936ccd5a
 # Plotting code
 begin
-	fig5 = Figure()
-	axis5 = Axis(fig5[1,1], title="Mobile/stationary atoms")
+	function mobile_stationary_plot()
+		CairoMakie.activate!()
+		fig = Figure()
+		axis = Axis(fig[1,1], title="Mobile/stationary atoms")
+
+		xlims!(axis, -0.25, 4.25)
+		ylims!(axis, -0.25, 4.25)
+
+		x1 = 0:4
+		y = 0:4
+		
+		# Create all combinations using vec and repeat
+		x = vec([i for i in x1, j in y])
+		y = vec([j for i in x1, j in y])
 	
-	# Create all combinations using vec and repeat
-	x5 = vec([i for i in x, j in y])
-	y5 = vec([j for i in x, j in y])
-
-	deleteat!(x5, 13)
-	deleteat!(y5, 13)
-
-	record(fig5, "mobile_stationary_diffusion.gif", 1:150, framerate=30) do i
-		empty!(axis5)
-
-		if i < 50
-			offset =  i / 100
-
-			x5_alt = [2 + offset]
-			y5_alt = [2 + offset]
-			
-			scatter!(axis5, x5, y5, markersize=50)
-			scatter!(axis5, x5_alt, y5_alt, markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
-			text!(axis5, [2 + offset], [2.2 + offset], text = "Stationary Atom")
-			scatter!(axis5, [1.5], [1.5], markersize=50)
-			text!(axis5, [1.5], [1.7], text = "Mobile Atom")
-		elseif i < 100
-			offset =  (i - 50) / 100
-			
-			y5_alt = [1.5 + offset]
-			x5_alt = [1.5 + offset]
-			scatter!(axis5, x5, y5, markersize=50)
-			scatter!(axis5, [2.5], [2.5], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
-			scatter!(axis5,  x5_alt, y5_alt, markersize=50)
-			text!(axis5, [2.5], [2.7], text = "Stationary Atom")
-			text!(axis5, [1.5 + offset], [1.7 + offset], text = "Mobile Atom")
-		else
-			scatter!(axis5, x5, y5, markersize=50)
-			scatter!(axis5, [2.5], [2.5], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
-			scatter!(axis5,  [2], [2], markersize=50)
-			text!(axis5, [2.5], [2.7], text = "Mobile Atom")
-			text!(axis5, [2], [2.2], text = "Stationary Atom")
+		deleteat!(x, 13)
+		deleteat!(y, 13)
+	
+		record(fig, "mobile_stationary_diffusion.gif", 1:150, framerate=30) do i
+			empty!(axis)
+	
+			if i < 50
+				offset =  i / 100
+	
+				x2 = [2 + offset]
+				y2 = [2 + offset]
+				
+				scatter!(axis, x, y, markersize=50)
+				scatter!(axis, x2, y2, markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+				text!(axis, [2 + offset], [2.2 + offset], text = "Stationary Atom")
+				scatter!(axis, [1.5], [1.5], markersize=50)
+				text!(axis, [1.5], [1.7], text = "Mobile Atom")
+			elseif i < 100
+				offset =  (i - 50) / 100
+				
+				y2 = [1.5 + offset]
+				x2 = [1.5 + offset]
+				scatter!(axis, x, y, markersize=50)
+				scatter!(axis, [2.5], [2.5], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+				scatter!(axis,  x2, y2, markersize=50)
+				text!(axis, [2.5], [2.7], text = "Stationary Atom")
+				text!(axis, [1.5 + offset], [1.7 + offset], text = "Mobile Atom")
+			else
+				scatter!(axis, x, y, markersize=50)
+				scatter!(axis, [2.5], [2.5], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+				scatter!(axis,  [2], [2], markersize=50)
+				text!(axis, [2.5], [2.7], text = "Mobile Atom")
+				text!(axis, [2], [2.2], text = "Stationary Atom")
+			end
 		end
-	end
-	LocalResource("mobile_stationary_diffusion.gif")
+		LocalResource("mobile_stationary_diffusion.gif")
+		end
+	mobile_stationary_plot()
 end
 
 # ╔═╡ ab388d5e-651d-4962-9b7e-1dfdf39b35fe
@@ -530,42 +585,46 @@ $$g = Zp_v\tag{32}$$
 # ╔═╡ 7c249d66-6ab2-4161-977e-abc9f719073a
 # Plotting code
 begin
-function vacancy_formation()
-	fig = Figure()
-	axis = Axis(fig[1,1], title="Vacancy formation")
+	function vacancy_formation()
+		CairoMakie.activate!()
+		fig = Figure()
+		axis = Axis(fig[1,1], title="Vacancy formation")
 
-	x1 = 0:4
-	y = 0:4
-	
-	# Create all combinations using vec and repeat
-	x = vec([i for i in x1, j in y])
-	y = vec([j for i in x1, j in y])
-
-	deleteat!(x, 13)
-	deleteat!(y, 13)
-
-	record(fig, "vacancy_formation.gif", 1:100, framerate=30) do i
-		empty!(axis)
-
-		if i < 50
-			offset =  i / 100
-
-			x_alt = [2 + offset]
-			y_alt = [2 + offset]
+		xlims!(axis, -0.25, 4.25)
+		ylims!(axis, -0.25, 4.25)
 			
-			scatter!(axis, x, y, markersize=50)
-			scatter!(axis, x_alt, y_alt, markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
-			text!(axis, [2 + offset], [2.2 + offset], text = "Thermally excited atom")
-		else
-			scatter!(axis, x, y, markersize=50)
-			scatter!(axis, [2.5], [2.5], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
-			text!(axis, [2.3], [2.7], text = "Interstitial")
-			text!(axis, [1], [2.2], text = "Potentially Mobile")
-			text!(axis, [2], [1.8], text = "Vacancy")
+		x1 = 0:4
+		y = 0:4
+		
+		# Create all combinations using vec and repeat
+		x = vec([i for i in x1, j in y])
+		y = vec([j for i in x1, j in y])
+	
+		deleteat!(x, 13)
+		deleteat!(y, 13)
+	
+		record(fig, "vacancy_formation.gif", 1:100, framerate=30) do i
+			empty!(axis)
+	
+			if i < 50
+				offset =  i / 100
+	
+				x2 = [2 + offset]
+				y2 = [2 + offset]
+				
+				scatter!(axis, x, y, markersize=50)
+				scatter!(axis, x2, y2, markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+				text!(axis, [2 + offset], [2.2 + offset], text = "Thermally excited atom")
+			else
+				scatter!(axis, x, y, markersize=50)
+				scatter!(axis, [2.5], [2.5], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+				text!(axis, [2.3], [2.7], text = "Interstitial")
+				text!(axis, [1], [2.2], text = "Potentially Mobile")
+				text!(axis, [2], [1.8], text = "Vacancy")
+			end
 		end
+		LocalResource("vacancy_formation.gif")
 	end
-	LocalResource("vacancy_formation.gif")
-end
 	vacancy_formation()
 end
 
@@ -581,42 +640,46 @@ where $G_V^M$ is the Gibb's free energy of vacancy formation, $S_V^M$ is the ent
 # ╔═╡ 0188a13e-0b79-496c-992b-74227047529f
 # Plotting code
 begin
-function vacancy_migration()
-	fig = Figure()
-	axis = Axis(fig[1,1], title="Vacancy migration")
+	function vacancy_migration()
+		CairoMakie.activate!()
+		fig = Figure()
+		axis = Axis(fig[1,1], title="Vacancy migration")
 
-	x1 = 0:4
-	y = 0:4
+		xlims!(axis, -0.25, 4.25)
+		ylims!(axis, -0.25, 4.25)
 	
-	# Create all combinations using vec and repeat
-	x = vec([i for i in x1, j in y])
-	y = vec([j for i in x1, j in y])
-
-	deleteat!(x, [13,14])
-	deleteat!(y, [13,14])
-
-	record(fig, "vacancy_migration.gif", 1:100, framerate=30) do i
-		empty!(axis)
-
-		if i < 50
-			offset =  i / 50
-
-			x_alt = [3 - offset]
-			y_alt = [2]
-			
-			scatter!(axis, x, y, markersize=50)
-			scatter!(axis, x_alt, y_alt, markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
-			text!(axis, [2 + offset], [2.2], text = "Vacancy")
-			text!(axis, [1], [2.2], text = "Mobile")
-		else
-			scatter!(axis, x, y, markersize=50)
-			scatter!(axis, [2], [2], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
-			text!(axis, [3], [2.2], text = "Vacancy")
-			text!(axis, [1], [2.2], text = "Not Mobile")
+		x1 = 0:4
+		y = 0:4
+		
+		# Create all combinations using vec and repeat
+		x = vec([i for i in x1, j in y])
+		y = vec([j for i in x1, j in y])
+	
+		deleteat!(x, [13,14])
+		deleteat!(y, [13,14])
+	
+		record(fig, "vacancy_migration.gif", 1:100, framerate=30) do i
+			empty!(axis)
+	
+			if i < 50
+				offset =  i / 50
+	
+				x_alt = [3 - offset]
+				y_alt = [2]
+				
+				scatter!(axis, x, y, markersize=50)
+				scatter!(axis, x_alt, y_alt, markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+				text!(axis, [2 + offset], [2.2], text = "Vacancy")
+				text!(axis, [1], [2.2], text = "Mobile")
+			else
+				scatter!(axis, x, y, markersize=50)
+				scatter!(axis, [2], [2], markersize=50, color = 1, colormap = :tab10, colorrange = (1, 10))
+				text!(axis, [3], [2.2], text = "Vacancy")
+				text!(axis, [1], [2.2], text = "Not Mobile")
+			end
 		end
-	end
-	LocalResource("vacancy_migration.gif")
-end
+		LocalResource("vacancy_migration.gif")
+		end
 	vacancy_migration()
 end
 
@@ -645,30 +708,443 @@ Where $F$ is the force acting on a particle due to the energy/potential gradient
 """
 
 # ╔═╡ 34c17de5-576a-40ba-b5a4-afa9ee2d8aef
+md"""
+## Defect Trapping
 
+There are a few ways in which defects can be trapped. When two defects meet, they may recombine, or agglomerate into a larger defect cluster. The rate at which trapping occurs depends on the configuration of a defect cluster. The rate of trapping will be different for a spherical vs. planar vs. rod-like defect cluster, for example.
+
+When modeling trapping, two assumptions are made:
+
+1. Trapping occurs when the separation distance between two defects are less than a critical radius.
+2. Within the critical radius, the defect concentration decreases linearly and reaches zero when the radius $r=0$.
+
+In the case of a spherical defect cluster $A$ with a trapping radius $r$, the trapping flux at $r$ is determined by defect diffusivity and concentration gradient at $r$ of a defect $B$. Assuming linear depletion, the trapping flux is given:
+
+$$J_{B\rightarrow A} = -D_B\frac{\delta C_B}{\delta x} = -D_B\frac{C_B(r) - 0}{r} \tag{38}$$
+
+To find the total trapping rate of $B$, one has to multiply by the surface area of available trapping sites (with concentration $C_A$) on the spherical defect cluster by the flux:
+
+$$\left[\frac{\Delta C_B}{\Delta t}\right]_{\text{spherical}} = C_A4\pi r^2 J_{B\rightarrow A} = (4\pi rD_BC_B)C_A \tag{39}$$
+
+$4\pi r$ represents the effective trapping area of a single defect $A$ with a radius $r$.
+
+"""
+
+# ╔═╡ 5b23e294-6bf6-439c-84ff-34cf99d31e53
+# Plotting code
+begin
+function defect_tracking()
+	CairoMakie.activate!()
+	fig = Figure()
+	axis = Axis(fig[1,1], title="Defect trapping")
+	
+	xlims!(axis, -0.25, 4.25)
+	ylims!(axis, -0.25, 4.25)
+
+	x1 = 1.5:0.25:2.5
+	y = 0:0.5:4
+	
+	# Create all combinations using vec and repeat
+	x = vec([i for i in x1, j in y])
+	y = vec([j for i in x1, j in y])
+
+	deleteat!(x, 25);
+	deleteat!(y, 25);
+
+	record(fig, "defect_trapping.gif", 1:100, framerate=30) do i
+		empty!(axis)
+
+		scatter!(axis, x, y, markersize=50)
+		text!(axis, [2.75], [4], text = "Rod-Like Defect Cluster")
+		
+		if i < 50
+			offset =  i / 50
+			 
+			x_alt = [3.5 - offset]
+			y_alt = [2]
+
+			scatter!(axis, x_alt, y_alt, markersize=50)
+			lines!(axis, [2.25, x_alt[1]], [2, 2], color=:black)
+			text!(axis, [3.5 - offset], [2.2], text = "Defect")
+			text!(axis, [3.25 - offset], [1.8], text = "Separation = $(round(sigdigits=3, 1.5 - offset))")
+		else
+			scatter!(axis, [2.5], [2], markersize=50)
+			text!(axis, [2.5], [2.2], text = "Defect", color=:black)
+			lines!(axis, [2.25, 2.5], [2, 2], color=:black)
+			text!(axis, [2.25], [1.8], text = "Separation = 0.5")
+		end
+	end
+	LocalResource("defect_trapping.gif")
+end
+	defect_tracking()
+end
+
+# ╔═╡ c1feebf7-4384-4196-bede-8f0662f301c4
+md"""
+For a 2D dislocation loop (to be treated as a circle), the trapping flux $J_{B\rightarrow A}$ takes the same form as in Equation (38). But the effective trapping area consists of the surface area of a circle instead with both sides available to absorb defects, which is $2\times \pi R^2$, where $R$ is the loop radius:
+
+$$\left[\frac{\Delta C_B}{\Delta t}\right]_{\text{loop}} = C_A(2\pi R^2)D_B\frac{C_B}{r} = \left(2\pi \frac{R^2}{r}D_BC_B\right)C_A \tag{40}$$
+
+For a 1D rod-like defect cluster, the ends are ignored and the surface area is $(\pi RL$, where $R$ is the rod radius, and $L$ is the length of the rod.
+
+$$\left[\frac{\Delta C_B}{\Delta t}\right]_{\text{rod}} = C_A(2\pi RL)D_B\frac{C_B}{r} = \left(2\pi\frac{RL}{r}D_BC_B\right) \tag{41}$$
+
+"""
+
+# ╔═╡ 9ae89154-24de-42b6-81ae-ebb07d6a87ea
+# Plots different types of defect clusters
+begin
+	function defect_cluster_types()
+		if wglmakie
+			WGLMakie.activate!()
+		else 
+			CairoMakie.activate!()
+		end
+		fig = Figure()
+		ax1 = Axis3(fig[1, 1], title="Spherical Defect")
+		ax2 = Axis3(fig[1, 2], title="Loop (circular) Defect")
+		ax3 = Axis3(fig[1, 3], title = "Rod-like defect")
+		xlims!(ax3, -1, 1)
+		ylims!(ax3, -1, 1)
+		ax4 = Axis(fig[2, 1:3], xlabel = "Radius", ylabel = "Concentration", title = "Defect concentration vs. radius")
+
+		sphere = Sphere(Point3f(0, 0, 0), 1.0f0)
+		mesh!(ax1, sphere, color = :dodgerblue)
+
+		circle = Circle(Point2f(0,0), 1.0f0)
+		mesh!(ax2, circle, color = :dodgerblue)
+
+		rod = Cylinder(Point3f(0, 0, -2), Point3f(0, 0, 2), 0.3f0)
+		mesh!(ax3, rod, color = :dodgerblue)
+
+		x = [1,2,5]
+		y = [0,1,1]
+		lines!(ax4, x, y)
+		vlines!(ax4, 2, linestyle=:dash)
+		
+		fig
+	end
+	defect_cluster_types()
+end
+
+# ╔═╡ 9ca2fdcf-5909-4c52-b470-080add85212a
+md"""
+In each of these three cases, linear depletion is assumed. This approximation does not consider the conservation of particles. In reality, for trapping by spherical and rod-like defect clusters, the flux is meant to increase as radius decreases, as the available surface area decreases. But this effect is negligible, and the estimation performs well enough without accounting for it.
+
+In the above derivation, it was assumed that the defect cluster was immobile. In the case of two mobile point defects (interstitials combining with vacanceis), the expression for trapping rate becomes:
+
+$$\left[\frac{\Delta C_I}{\Delta t}\right]_{I-V} = \left[\frac{\Delta C_I}{\Delta t}\right]_{I-V} = 4\pi r^2(D_I + D_V)C_IC_V \tag{41}$$
+
+Where $I$ and $V$ are vacancies and interstitials, respetively. You are encouraged to attempt to make this derivation yourself.
+
+The trapping radius is generally taken to be the value of the lattice spacing. In addition, it is assumed that there is no energy barrier, and that a defect will freely become trapped once inside the trapping radius. In the case that a trapping reaction does require energy, the expression of the trapping radius can be augmented:
+
+$$r = r_0\exp\left(-\frac{E_T}{kT}\right)\tag{42}$$
+
+where $r_0$ is the energy-free trapping radius, $E_T$ is the trapping activation energy, $k$ is the Boltzmann constant, and $T$ is temperature.
+"""
+# I don't really know what this means.
+
+# ╔═╡ dc173930-d763-4e53-baca-be8779f41614
+begin
+	function lattice_spacing()
+		if wglmakie
+			WGLMakie.activate!()
+		else 
+			CairoMakie.activate!()
+		end
+
+		fig = Figure()
+		ax = Axis3(fig[1,1], title = "Lattice spacing (BCC)")
+
+		x = [0, 0, 0, 0, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0, 1]
+		y = [0, 0, 1, 1, 0, 0, 1, 1, 0.5, 0.5, 0.5, 0, 1, 0.5, 0.5]
+		z = [0, 1, 0, 1, 0, 1, 0, 1, 0.5, 0, 1, 0.5, 0.5, 0.5, 0.5]
+		scatter!(ax, x, y, z, markersize=50)
+		lines!(ax, [0,0,0], [0,1,0], linestyle=:dash)
+		text!(ax, 0, 0.5, 0, text="r = Lattice spacing")
+		
+		
+		fig
+	end
+	lattice_spacing()
+end
+
+# ╔═╡ 591e64a6-56d6-4014-8db6-d90274f5216f
+md"""
+## Defect interactions
+
+Excluding large defect clusters, the concentration of interstitials and vacancies can be modeled:
+
+$$\frac{\delta C_I}{\delta t} = \nabla\cdot D_I\nabla C_I + K_0 - K_{I-V}C_IC_V - K_{I-T}C_IC_T  \tag{43}$$
+$$\frac{\delta C_V}{\delta t} = \nabla\cdot D_V\nabla C_V + K_0 - K_{I-V}C_IC_V - K_{V-T}C_VC_T  \tag{44}$$
+
+Where $K_0$ is the generation rate of point defects, $K_{I-V}[=4\pi r(D_I + D_V)]$ is the defect recombination rate, $D_{I,V}$ and $C_{I,V}$ are diffusivity and concentration of interstitials $(I)$ and vacancies $(V)$.
+"""
+
+# ╔═╡ 2322c0d0-3fa4-47fd-8c3c-905af02461d5
+begin
+	function c_over_time_graph()
+		CairoMakie.activate!()
+		
+
+		fig = Figure()
+		ax = Axis(fig[1,1], xlabel = L"\log t", ylabel = L"\log C", title = "Vacancy/Interstitial concentration over time")
+		xlims!(ax, 0, 4.25)
+		ylims!(ax, 0, 2)
+	
+		lines!(ax, [0,1], [0,1], color=:black)
+		vlines!(ax, 1, ymin = 0, ymax = 0.5, linestyle = :dash, color = :black)
+		text!(ax, 0.2, 1, text="low temperature\nlow sink density\nτ₁ < τ₂")
+		text!(ax, 0.2, 0.85, text=L"C_I = C_v = K_0t")
+		text!(ax, 0.95, 0.3, text=L"(K_0K_{I-V})^{-1/2}", rotation=π/2)
+
+		lines!(ax, [1,2], [1,1], color=:black)
+		text!(ax, 1, 1, text=L"C_I = C_V = (K_0/K_{I-V})^{1/2}")
+		vlines!(ax, 2, ymin = 0, ymax = 0.5, linestyle = :dash, color = :black)
+		text!(ax, 1.95, 0.3, text=L"(K_{I_T}C_T)^{-1}", rotation=π/2)
+		
+		lines!(ax, [2,3], [1,1.5], color=:black)
+		lines!(ax, [2,3], [1,0.5], color=:black)
+		vlines!(ax, 3, ymin = 0, ymax = 0.75, linestyle = :dash, color = :black)
+		text!(ax, 1.8, 1.5, text=L"C_V = (K_0K_{I-S}C_St / K_{I-V})^{1/2}")
+		text!(ax, 2.0, 0.3, text=L"C_I = \left(\frac{K_0}{K_{I-V}L_{I-T}C_Tt}\right)^{1/2}")
+		text!(ax, 3, 0.75, text=L"(K_{V-T}C_T)^{-1}", rotation = π/2)
+
+		lines!(ax, [3,4], [1.5,1.5], color=:black)
+		lines!(ax, [3,4], [0.5,0.5], color=:black)
+		text!(ax, 3.1, 1.5, text=L"C_V = \left(\frac{K_0K_{I-T}}{K_{I-V}K_{V-T}}\right)^{1/2}")
+		text!(ax, 3.1, 0.5, text=L"C_I = \left(\frac{K_0K_{V-T}}{K_{I-V}K_{I-T}}\right)^{1/2}")
+		text!(ax, 0, -0.5, text=L"C_I = \left(\frac{K_0K_{V-T}}{K_{I-V}K_{I-T}}\right)^{1/2}")
+
+		text!(ax, 0.1, 1.7, text= "buildup without\nreaction")
+		text!(ax, 1.1, 1.7, text= "mutual\nrecombination\ndominates")
+		text!(ax, 1.1, 1.7, text= "mutual\nrecombination\ndominates")
+		text!(ax, 2.1, 1.7, text= "sinks contribute\nto interstitial\nannihilation")
+		text!(ax, 3, 1.8, text= "sinks also contribute\n to vacancy annihilation")
+		
+		fig
+	end
+	c_over_time_graph()
+end
+
+# ╔═╡ 16d9d932-ddf4-4486-8324-ae6dcdf86e18
+md"""
+## Rate theory for defect clustering
+
+The above  approximations are adequate for predicting damage without defect clustering, which is valid for low temperature or low defect concentration. When irradition takes place over a long period of time, defects begin to agglomerate into larger defect clusters. This is especially prevelant with longer annealing time and high temperature annealing. 
+
+These clusters can be accounted for with the previous equations by adding terms which account for the absorption and release of defects.
+
+$$\frac{\delta C_I}{\delta t} = \nabla\cdot D_I\nabla C_I + K_0 - K_{I-V}C_IC_V - K_{I-T}C_IC_T - \underbrace{\sum_{n\ge 2}K_{I-I_n}C_IC_{I_n} + \sum_{n\ge 2}R_{I_n}C_{I_n}\tag{45}}_{\text{Interstitial cluster absorption/emission}}$$
+$$\frac{\delta C_V}{\delta t} = \nabla\cdot D_V\nabla C_V + K_0 - K_{I-V}C_IC_V - K_{V-T}C_VC_T - \underbrace{\sum_{n\ge 2}K_{V-V_n}C_VC_{V_n} + \sum_{n\ge 2}R_{V_n}C_{V_n}}_{\text{Vacancy cluster absorption/emission}} \tag{46}$$
+
+where $K_{I-I_n}, K_{V-V_n}$ is the rate at which interstitials/vacancies are absorbed into the cluster of size $n$, $C_{I_n}, C_{V_n}$ is the concentration of interstitials/vacancies in the cluster, $R_{I_n}, R_{V_n}$ is the rate at which defect clusters decay (by emitting interstitials/vacancies)
+
+Defects will attempt to escape defect clusters, but must have a threshold energy high enough to disaccociate and migrate away from the defect cluster. The required energy is a combiatnion of the diassociation energy and the migration energy. The Boltzmann distribution determines the fraction of defects that can escape a cluster.
+"""
+
+# ╔═╡ 4365438f-afa6-4478-9d86-6c82545dc84e
+begin
+	function energy_graph()
+		CairoMakie.activate!()
+		
+		fig = Figure()
+		ax = Axis(fig[1,1], xlabel = "Configuration", ylabel = "Energy", title = "Defect and dissociation energy ")
+		hidedecorations!(ax, label=false,)
+		
+		# xlims!(ax, 0, 4.25)
+		ylims!(ax, 0, 1.5)
+
+		lines!(ax, [0,1], [0,1], color=:black)
+		x = 1:0.01:3
+		y = @. -(sin((x + 1) * 11))/8 .+ 1
+		lines!(ax, x, y, color=:black)
+		
+		x = 3:0.01:4
+		y = @. ((x-3.5)*10)^2/50 + 0.5
+		lines!(ax, x, y, color=:black)
+		
+		x = 4:0.01:6
+		y = @. (cos((x + 1) * 11))/8 .+ 1
+		lines!(ax, x, y, color=:black)
+
+		x = 6:0.01:7
+		y = @. ((x-6.5)*6)^2/10+0.11
+		lines!(ax, x, y, color=:black)
+
+		x = 7:0.01:8
+		y = @. (sin((x + 1) * 11))/8 .+ 1
+		lines!(ax, x, y, color=:black)
+
+		annotation!(ax, 180, 0, 0.3, 1,
+		    text = " ",
+		    path = Ann.Paths.Arc(height = 1),
+		    style = Ann.Styles.LineArrow()
+		)
+		annotation!(ax, -180, 1, 6.4, 1,
+		    text = " ",
+		    path = Ann.Paths.Arc(height = 1),
+		    style = Ann.Styles.LineArrow()
+		)
+		annotation!(ax, 0, 110, 2, 0.47,
+		    text = " ",
+		    path = Ann.Paths.Line(),
+		    style = Ann.Styles.LineArrow(head = Ann.Arrows.Head(), tail = Ann.Arrows.Head())
+		)
+		
+		annotation!(ax, 200, 0, 1.2,  0.5,
+		    text = " ",
+		    path = Ann.Paths.Line()
+		)
+		annotation!(ax, 100, 0, 1.2,  0.87,
+		    text = " ",
+		    path = Ann.Paths.Line()
+		)
+		text!(ax, 1.6, 0.65, text = L"E_b")
+		text!(ax, 1.3, 0.35, text = "Binding energy")
+		
+		annotation!(ax, -40, -40, 3, 0.25,
+		    text = "Formation\nenergy of defect",
+		    path = Ann.Paths.Line(),
+		    style = Ann.Styles.LineArrow(head = Ann.Arrows.Head())
+		)
+
+		annotation!(ax, 0, 138, 3.5, -0.03,
+		    text = " ",
+		    path = Ann.Paths.Line(),
+		    style = Ann.Styles.LineArrow(head = Ann.Arrows.Head(), tail = Ann.Arrows.Head()))
+		text!(ax, 3.0, 0.25, text = L"E_{fc}")
+		annotation!(ax, 0, 165, 4.14, 0.47,
+		    text = " ",
+		    path = Ann.Paths.Line(),
+		    style = Ann.Styles.LineArrow(head = Ann.Arrows.Head())
+		)
+		text!(ax, 4.3, 0.6, text = L"E_{\text{diss}}")
+
+		annotation!(ax, 20, -50, 4.5, 0.62,
+		    text = "Dissociation energy\nfor I release",
+		    path = Ann.Paths.Line(),
+		    style = Ann.Styles.LineArrow(head = Ann.Arrows.Head())
+		)
+		
+		fig
+	end
+	energy_graph()
+end
+
+# ╔═╡ f5ef096e-de1f-4299-a8d0-4f9d757f96a2
+md"""
+We can write equations for each defect cluster of size $n$ as well:
+
+$$\frac{\delta C_{I_n}}{\delta t} = \nabla\cdot D_{I_n}\nabla C_{I_n} + K_{I-I_{n-1}}C_IC_{I_{n-1}} - K_{I-I_n}C_IC_{I_n}	 - R_{I_n}C_{I_n} +  R_{I_{n+1}}C_{I_{n+1}} \tag{47}$$
+$$\frac{\delta C_{V_n}}{\delta t} = \nabla\cdot D_{V_n}\nabla C_{V_n} + K_{V-V_{n-1}}C_VC_{V_{n-1}} - K_{V-V_n}C_VC_{V_n} - R_{V_n}C_{V_n} +  R_{V_{n+1}}C_{V_{n+1}} \tag{48}$$
+
+Here, the first term is the diffusion term, where $D_{I_n}, D_{V_n}$ is the diffusivity of a $n$ defect cluster, and $C_{I_n}, C_{V_n}$ is the concentration of a cluster with $n$ defects. $K_{I-I_{n-1}}, K_{V-V_{n-1}}$ is the rate at which defects are trapped by clusters size $n-1$, causing them to become clusters of size $n$. $K_{I-I_{n}}, K_{V-V_{n}}$ is the rate at which clusters of size $n$ capture defects and become size $n + 1$. $R_{I_n}, R_{V_n}$ is the rate at which defects are emmited (decay) from defect clusters of size $n$, and  $R_{I_{n+1}}, R_{V_{n+1}}$ is the rate at which defects are emitted from defect clusters of size $n + 1$.
+ 
+The diffusion term (first term on the right) is generally negligible for defect clusters. They are largely immobile ($D_{I_n} = D_{V_n} = 0$), with the exception of di-interstitials, and di-vacancies, which are thought to be mobile in some metals.
+
+The trapping and decay terms can be written:
+
+$$K_{I - I_n} = 4\pi r_n(D_I + D_{I_n}) \tag{49}$$
+$$R_{I_n} = \Gamma_0Zn\exp\left(-\frac{E_{\text{diss}}(n)}{kT}\right) \tag{50}$$
+
+with analogous equations for vacancies.
+
+Where $\Gamma_0$ is the number of jump attempts along a specific direction,  $Z$ is the number of available jump sites, and $E_{\text{diss}}(n)$ is the dissassociation energy for a defect cluster of size $n$.
+
+"""
+
+# ╔═╡ a1b55842-ef12-44f0-a686-4976cd55765a
+# Plotting code
+begin
+function defect_trapping_emission()
+	CairoMakie.activate!()
+	fig = Figure()
+	ax1 = Axis(fig[1,1], title="Defect trapping/emission")
+
+	xlims!.(ax1, 0, 10)
+	ylims!.(ax1, 0, 10)
+	
+	x = [4,6,4,5,6,4,6]
+	y = [4,4,5,5,5,6,6]
+
+	record(fig, "defect_trapping_emission.gif", 1:100, framerate=30) do i
+		empty!(ax1)
+		scatter!(ax1, x, y, markersize=50)
+		
+		if i < 50
+			offset = i / 50
+			scatter!(ax1, [5], [6 + offset], markersize=50)
+			annotation!(ax1, 5, 7 + offset, text = L"\text{Escaping Defect} R_{I_n}")
+			scatter!(ax1, [5], [3 + offset], markersize=50)
+			annotation!(ax1, 5, 2 + offset, text = L"\text{Trapped Defect} K_{I-I_n}")
+		else
+			scatter!(ax1, [5], [7], markersize=50)
+			annotation!(ax1, 5, 8, text = L"\text{Escaping Defect} R_{I_n}")
+			scatter!(ax1, [5], [4], markersize=50)
+			annotation!(ax1, 5, 3, text = L"\text{Trapped Defect} K_{I-I_n}")
+		end
+		
+		
+	end
+	LocalResource("defect_trapping_emission.gif")
+end
+	defect_trapping_emission()
+end
+
+# ╔═╡ 7b0f6bf6-eb66-4f1a-bc5c-71cfbe2b0c90
+md"""
+The interstitial diffusivity can be written:
+
+$$D_I = \frac{1}{6}\Gamma_0Z d^2 \exp\left(-\frac{E_m}{kT}\right)  = D_0\exp\left(-\frac{E_m}{kT}\right) \tag{51}$$
+
+$$E_{\text{diss}}(n) = E_{\text{bind}}(n) + E_m\tag{52}$$
+
+where $E_\text{bind}(n)$ is the binding energy of a defect to the defect cluster of size $n$, and $E_m$ is the migration energy. Recall Equation (22) with $D_0 = \frac{1}{6}\Gamma_0Zd^2$.
+
+The defect emission rate can be written:
+
+$$R_{I_n} = 6\frac{D_I}{d^2}n\exp\left[-\frac{E_{\text{bind}}(n)}{kT}\right] \tag{53}$$
+
+Or using Equation (51):
+
+$$R_{I_n} = 6\frac{D_0}{d^2}n\exp\left(-\frac{E_{\text{diss}}(n)}{kT}\right) \tag{54}$$
+
+## Ostwald ripening
+
+
+
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 Handcalcs = "e8a07092-c156-4455-ab8e-ed8bc81edefb"
 Latexify = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Match = "7eb4fadd-790c-5f42-8a69-bfa0b872bfbf"
 PhysicalConstants = "5ad8b20f-a522-5ce9-bfc9-ddf1d5bda6ab"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [compat]
-GLMakie = "~0.13.8"
+CairoMakie = "~0.15.8"
+GeometryBasics = "~0.5.10"
 Handcalcs = "~0.5.3"
 Latexify = "~0.16.10"
+Makie = "~0.24.8"
 Match = "~2.4.1"
 PhysicalConstants = "~0.2.4"
-PlutoUI = "~0.7.75"
+PlutoUI = "~0.7.78"
 Symbolics = "~7.0.1"
 Unitful = "~1.28.0"
+WGLMakie = "~0.13.8"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -677,7 +1153,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "a494bb05210f990370c8178e90e427e66c3f0c5c"
+project_hash = "4ceb797e99b5c93a15f7b2d8e5cdb7be37c06cc1"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "27cecae79e5cc9935255f90c53bb831cc3c870d7"
@@ -842,6 +1318,17 @@ git-tree-sha1 = "a2d308fcd4c2fb90e943cf9cd2fbfa9c32b69733"
 uuid = "e2ed5e7c-b2de-5872-ae92-c73ca462fb04"
 version = "0.2.2"
 
+[[deps.BitFlags]]
+git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
+uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
+version = "0.1.9"
+
+[[deps.Bonito]]
+deps = ["Base64", "CodecZlib", "Colors", "Dates", "Deno_jll", "HTTP", "Hyperscript", "JSON", "LinearAlgebra", "Markdown", "MbedTLS", "MsgPack", "Observables", "OrderedCollections", "Random", "RelocatableFolders", "SHA", "Sockets", "Tables", "ThreadPools", "URIs", "UUIDs", "WidgetsBase"]
+git-tree-sha1 = "bb43f72801f703ad3c66833bd02b8f54c7328238"
+uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
+version = "4.2.0"
+
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "1b96ea4a01afe0ea4090c5c8039690672dd13f2e"
@@ -868,6 +1355,18 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "e329286945d0cfc04456972ea732551869af1cfc"
 uuid = "4e9b3aee-d8a1-5a3d-ad8b-7d824db253f0"
 version = "1.0.1+0"
+
+[[deps.Cairo]]
+deps = ["Cairo_jll", "Colors", "Glib_jll", "Graphics", "Libdl", "Pango_jll"]
+git-tree-sha1 = "71aa551c5c33f1a4415867fe06b7844faadb0ae9"
+uuid = "159f3aea-2a34-519c-b102-8c37f9878175"
+version = "1.1.1"
+
+[[deps.CairoMakie]]
+deps = ["CRC32c", "Cairo", "Cairo_jll", "Colors", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "PrecompileTools"]
+git-tree-sha1 = "5017d6849aff775febd36049f7d926a5fb6677ec"
+uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+version = "0.15.8"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -896,6 +1395,12 @@ deps = ["InteractiveUtils", "UUIDs"]
 git-tree-sha1 = "980f01d6d3283b3dbdfd7ed89405f96b7256ad57"
 uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
 version = "2.0.1"
+
+[[deps.CodecZlib]]
+deps = ["TranscodingStreams", "Zlib_jll"]
+git-tree-sha1 = "962834c22b66e32aa10f7611c08c8ca4e20749a9"
+uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
+version = "0.7.8"
 
 [[deps.ColorBrewer]]
 deps = ["Colors", "JSON"]
@@ -990,6 +1495,12 @@ git-tree-sha1 = "76dab592fa553e378f9dd8adea16fe2591aa3daa"
 uuid = "95dc2771-c249-4cd0-9c9f-1f3b4330693c"
 version = "0.1.6"
 
+[[deps.ConcurrentUtilities]]
+deps = ["Serialization", "Sockets"]
+git-tree-sha1 = "d9d26935a0bcffc87d2613ce14c527c99fc543fd"
+uuid = "f0e56b4a-5159-44fe-b623-3e5288b988bb"
+version = "2.5.0"
+
 [[deps.ConstructionBase]]
 git-tree-sha1 = "b4b092499347b18a015186eae3042f72267106cb"
 uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
@@ -1027,17 +1538,17 @@ deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 version = "1.11.0"
 
-[[deps.Dbus_jll]]
-deps = ["Artifacts", "Expat_jll", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "473e9afc9cf30814eb67ffa5f2db7df82c3ad9fd"
-uuid = "ee1fde0b-3d02-5ea6-8484-8dfef6360eab"
-version = "1.16.2+0"
-
 [[deps.DelaunayTriangulation]]
 deps = ["AdaptivePredicates", "EnumX", "ExactPredicates", "Random"]
 git-tree-sha1 = "c55f5a9fd67bdbc8e089b5a3111fe4292986a8e8"
 uuid = "927a84f5-c5f4-47a5-9785-b46e178433df"
 version = "1.6.6"
+
+[[deps.Deno_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "cd6756e833c377e0ce9cd63fb97689a255f12323"
+uuid = "04572ae6-984a-583e-9378-9577a1c2574d"
+version = "1.33.4+0"
 
 [[deps.DiffRules]]
 deps = ["IrrationalConstants", "LogExpFunctions", "NaNMath", "Random", "SpecialFunctions"]
@@ -1104,17 +1615,17 @@ git-tree-sha1 = "7bebc8aad6ee6217c78c5ddcf7ed289d65d0263e"
 uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
 version = "1.0.6"
 
-[[deps.EpollShim_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "8a4be429317c42cfae6a7fc03c31bad1970c310d"
-uuid = "2702e6a9-849d-5ed8-8c21-79e8b8f9ee43"
-version = "0.0.20230411+1"
-
 [[deps.ExactPredicates]]
 deps = ["IntervalArithmetic", "Random", "StaticArrays"]
 git-tree-sha1 = "83231673ea4d3d6008ac74dc5079e77ab2209d8f"
 uuid = "429591f6-91af-11e9-00e2-59fbe8cec110"
 version = "2.2.9"
+
+[[deps.ExceptionUnwrapping]]
+deps = ["Test"]
+git-tree-sha1 = "d36f682e590a83d63d1c7dbd287573764682d12a"
+uuid = "460bff9d-24e4-43bc-9d9f-a8973cb893f4"
+version = "0.1.11"
 
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1154,12 +1665,10 @@ deps = ["Pkg", "Requires", "UUIDs"]
 git-tree-sha1 = "6522cfb3b8fe97bec632252263057996cbd3de20"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 version = "1.18.0"
+weakdeps = ["HTTP"]
 
     [deps.FileIO.extensions]
     HTTPExt = "HTTP"
-
-    [deps.FileIO.weakdeps]
-    HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 
 [[deps.FilePaths]]
 deps = ["FilePathsBase", "MacroTools", "Reexport"]
@@ -1251,24 +1760,6 @@ deps = ["Random"]
 uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 version = "1.11.0"
 
-[[deps.GLFW]]
-deps = ["GLFW_jll"]
-git-tree-sha1 = "af06f66cca2b698ab9c482de55977ff8178d025e"
-uuid = "f7f18e0c-5ee9-5ccd-a5bf-e8befd85ed98"
-version = "3.4.6"
-
-[[deps.GLFW_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll", "libdecor_jll", "xkbcommon_jll"]
-git-tree-sha1 = "b7bfd56fa66616138dfe5237da4dc13bbd83c67f"
-uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
-version = "3.4.1+0"
-
-[[deps.GLMakie]]
-deps = ["ColorTypes", "Colors", "FileIO", "FixedPointNumbers", "FreeTypeAbstraction", "GLFW", "GeometryBasics", "LinearAlgebra", "Makie", "Markdown", "MeshIO", "ModernGL", "Observables", "PrecompileTools", "Printf", "ShaderAbstractions", "StaticArrays"]
-git-tree-sha1 = "56335175a66c30ca0e503ad717d366cd9e1663b1"
-uuid = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
-version = "0.13.8"
-
 [[deps.GeometryBasics]]
 deps = ["EarCut_jll", "Extents", "IterTools", "LinearAlgebra", "PrecompileTools", "Random", "StaticArrays"]
 git-tree-sha1 = "1f5a80f4ed9f5a4aada88fc2db456e637676414b"
@@ -1305,6 +1796,12 @@ git-tree-sha1 = "24f6def62397474a297bfcec22384101609142ed"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.86.3+0"
 
+[[deps.Graphics]]
+deps = ["Colors", "LinearAlgebra", "NaNMath"]
+git-tree-sha1 = "a641238db938fff9b2f60d08ed9030387daf428c"
+uuid = "a2bd30eb-e257-5431-a919-1863eab51364"
+version = "1.1.3"
+
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "8a6dbda1fd736d60cc477d99f2e7a042acfa46e8"
@@ -1321,6 +1818,12 @@ version = "0.11.2"
 git-tree-sha1 = "53bb909d1151e57e2484c3d1b53e19552b887fb2"
 uuid = "42e2da0e-8278-4e71-bc24-59509adca0fe"
 version = "1.0.2"
+
+[[deps.HTTP]]
+deps = ["Base64", "CodecZlib", "ConcurrentUtilities", "Dates", "ExceptionUnwrapping", "Logging", "LoggingExtras", "MbedTLS", "NetworkOptions", "OpenSSL", "PrecompileTools", "Random", "SimpleBufferStream", "Sockets", "URIs", "UUIDs"]
+git-tree-sha1 = "5e6fe50ae7f23d171f44e311c2960294aaa0beb5"
+uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+version = "1.10.19"
 
 [[deps.Handcalcs]]
 deps = ["AbstractTrees", "CodeTracking", "InteractiveUtils", "LaTeXStrings", "Latexify", "MacroTools", "PrecompileTools", "Revise", "TestHandcalcFunctions"]
@@ -1501,10 +2004,16 @@ uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
 version = "1.7.1"
 
 [[deps.JSON]]
-deps = ["Dates", "Mmap", "Parsers", "Unicode"]
-git-tree-sha1 = "31e996f0a15c7b280ba9f76636b3ff9e2ae58c9a"
+deps = ["Dates", "Logging", "Parsers", "PrecompileTools", "StructUtils", "UUIDs", "Unicode"]
+git-tree-sha1 = "b3ad4a0255688dcb895a52fafbaae3023b588a90"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "0.21.4"
+version = "1.4.0"
+
+    [deps.JSON.extensions]
+    JSONArrowExt = ["ArrowTypes"]
+
+    [deps.JSON.weakdeps]
+    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 
 [[deps.Jieko]]
 deps = ["ExproniconLite"]
@@ -1520,9 +2029,9 @@ version = "0.1.6"
 
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "4255f0032eafd6451d707a51d5f0248b8a165e4d"
+git-tree-sha1 = "b6893345fd6658c8e475d40155789f4860ac3b21"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
-version = "3.1.3+0"
+version = "3.1.4+0"
 
 [[deps.JuliaInterpreter]]
 deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
@@ -1683,6 +2192,12 @@ version = "0.3.29"
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 version = "1.11.0"
 
+[[deps.LoggingExtras]]
+deps = ["Dates", "Logging"]
+git-tree-sha1 = "f00544d95982ea270145636c181ceda21c4e2575"
+uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
+version = "1.2.0"
+
 [[deps.LoweredCodeUtils]]
 deps = ["CodeTracking", "Compiler", "JuliaInterpreter"]
 git-tree-sha1 = "e24491cb83551e44a69b9106c50666dea9d953ab"
@@ -1733,6 +2248,18 @@ git-tree-sha1 = "7eb8cdaa6f0e8081616367c10b31b9d9b34bb02a"
 uuid = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
 version = "0.6.7"
 
+[[deps.MbedTLS]]
+deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "NetworkOptions", "Random", "Sockets"]
+git-tree-sha1 = "c067a280ddc25f196b5e7df3877c6b226d390aaf"
+uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
+version = "1.1.9"
+
+[[deps.MbedTLS_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "ff69a2b1330bcb730b9ac1ab7dd680176f5896b8"
+uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
+version = "2.28.1010+0"
+
 [[deps.Measurements]]
 deps = ["Calculus", "LinearAlgebra", "Printf"]
 git-tree-sha1 = "030f041d5502dbfa41f26f542aaac32bcbe89a64"
@@ -1755,12 +2282,6 @@ version = "2.14.0"
     SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
-[[deps.MeshIO]]
-deps = ["ColorTypes", "FileIO", "GeometryBasics", "Printf"]
-git-tree-sha1 = "c009236e222df68e554c7ce5c720e4a33cc0c23f"
-uuid = "7269a6da-0436-5bbc-96c2-40638cbb6118"
-version = "0.5.3"
-
 [[deps.Missings]]
 deps = ["DataAPI"]
 git-tree-sha1 = "ec4f7fbeab05d7747bdf98eb74d130a2a2ed298d"
@@ -1770,12 +2291,6 @@ version = "1.2.0"
 [[deps.Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 version = "1.11.0"
-
-[[deps.ModernGL]]
-deps = ["Libdl"]
-git-tree-sha1 = "ac6cb1d8807a05cf1acc9680e09d2294f9d33956"
-uuid = "66fc600b-dfda-50eb-8b99-91cfa97b1301"
-version = "1.1.8"
 
 [[deps.MosaicViews]]
 deps = ["MappedArrays", "OffsetArrays", "PaddedViews", "StackViews"]
@@ -1792,6 +2307,12 @@ version = "0.3.7"
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 version = "2025.11.4"
+
+[[deps.MsgPack]]
+deps = ["Serialization"]
+git-tree-sha1 = "f5db02ae992c260e4826fe78c942954b48e1d9c2"
+uuid = "99f44e22-a591-53d1-9472-aa23ef4bd671"
+version = "1.2.1"
 
 [[deps.MuladdMacro]]
 git-tree-sha1 = "cac9cc5499c25554cba55cd3c30543cff5ca4fab"
@@ -1877,6 +2398,12 @@ version = "3.4.4+0"
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 version = "0.8.7+0"
+
+[[deps.OpenSSL]]
+deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "NetworkOptions", "OpenSSL_jll", "Sockets"]
+git-tree-sha1 = "1d1aaa7d449b58415f97d2839c318b70ffb525a0"
+uuid = "4d8831e6-92b7-49fb-bdf8-b643e874388c"
+version = "1.6.1"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1979,10 +2506,10 @@ uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.4.4"
 
 [[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Downloads", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "db8a06ef983af758d285665a0398703eb5bc1d66"
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Downloads", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "6122f9423393a2294e26a4efdf44960c5f8acb70"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.75"
+version = "0.7.78"
 
 [[deps.PolygonOps]]
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
@@ -2203,6 +2730,11 @@ git-tree-sha1 = "3949ad92e1c9d2ff0cd4a1317d5ecbba682f4b92"
 uuid = "73760f76-fbc4-59ce-8f25-708e95d2df96"
 version = "0.4.1"
 
+[[deps.SimpleBufferStream]]
+git-tree-sha1 = "f305871d2f381d21527c770d4788c06c097c9bc1"
+uuid = "777ac1f9-54b0-4bf8-805c-2214025038e7"
+version = "1.2.0"
+
 [[deps.SimpleTraits]]
 deps = ["InteractiveUtils", "MacroTools"]
 git-tree-sha1 = "be8eeac05ec97d379347584fa9fe2f5f76795bcb"
@@ -2321,6 +2853,17 @@ version = "0.7.2"
     LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[[deps.StructUtils]]
+deps = ["Dates", "UUIDs"]
+git-tree-sha1 = "28145feabf717c5d65c1d5e09747ee7b1ff3ed13"
+uuid = "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42"
+version = "2.6.3"
+weakdeps = ["Measurements", "Tables"]
+
+    [deps.StructUtils.extensions]
+    StructUtilsMeasurementsExt = ["Measurements"]
+    StructUtilsTablesExt = ["Tables"]
 
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
@@ -2450,6 +2993,12 @@ git-tree-sha1 = "54dac4d0a0cd2fc20ceb72e0635ee3c74b24b840"
 uuid = "6ba57fb7-81df-4b24-8e8e-a3885b6fcae7"
 version = "0.2.4"
 
+[[deps.ThreadPools]]
+deps = ["Printf", "RecipesBase", "Statistics"]
+git-tree-sha1 = "50cb5f85d5646bc1422aa0238aa5bfca99ca9ae7"
+uuid = "b189fb0b-2eb5-4ed4-bc0c-d34c51242431"
+version = "2.1.1"
+
 [[deps.TiffImages]]
 deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "PrecompileTools", "ProgressMeter", "SIMD", "UUIDs"]
 git-tree-sha1 = "98b9352a24cb6a2066f9ababcc6802de9aed8ad8"
@@ -2514,11 +3063,11 @@ version = "1.28.0"
     NaNMath = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
     Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
-[[deps.Wayland_jll]]
-deps = ["Artifacts", "EpollShim_jll", "Expat_jll", "JLLWrappers", "Libdl", "Libffi_jll"]
-git-tree-sha1 = "96478df35bbc2f3e1e791bc7a3d0eeee559e60e9"
-uuid = "a2964d1f-97da-50d4-b82a-358c7fce9d89"
-version = "1.24.0+0"
+[[deps.WGLMakie]]
+deps = ["Bonito", "Colors", "FileIO", "FreeTypeAbstraction", "GeometryBasics", "Hyperscript", "LinearAlgebra", "Makie", "Observables", "PNGFiles", "PrecompileTools", "RelocatableFolders", "ShaderAbstractions", "StaticArrays"]
+git-tree-sha1 = "32801246eb6c7afb0e1e49509b3ffebecb538657"
+uuid = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
+version = "0.13.8"
 
 [[deps.WeakCacheSets]]
 git-tree-sha1 = "386050ae4353310d8ff9c228f83b1affca2f7f38"
@@ -2530,6 +3079,12 @@ deps = ["CEnum", "ColorTypes", "FileIO", "FixedPointNumbers", "ImageCore", "libw
 git-tree-sha1 = "aa1ca3c47f119fbdae8770c29820e5e6119b83f2"
 uuid = "e3aaa7dc-3e4b-44e0-be63-ffb868ccd7c1"
 version = "0.1.3"
+
+[[deps.WidgetsBase]]
+deps = ["Observables"]
+git-tree-sha1 = "30a1d631eb06e8c868c559599f915a62d55c2601"
+uuid = "eead4739-05f7-45a1-878c-cee36b57321c"
+version = "0.1.4"
 
 [[deps.WoodburyMatrices]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -2555,12 +3110,6 @@ git-tree-sha1 = "aa1261ebbac3ccc8d16558ae6799524c450ed16b"
 uuid = "0c0b7dd1-d40b-584c-a123-a41640f87eec"
 version = "1.0.13+0"
 
-[[deps.Xorg_libXcursor_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libXfixes_jll", "Xorg_libXrender_jll"]
-git-tree-sha1 = "6c74ca84bbabc18c4547014765d194ff0b4dc9da"
-uuid = "935fb764-8cf2-53bf-bb30-45bb1f8bf724"
-version = "1.2.4+0"
-
 [[deps.Xorg_libXdmcp_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "52858d64353db33a56e13c341d7bf44cd0d7b309"
@@ -2573,30 +3122,6 @@ git-tree-sha1 = "1a4a26870bf1e5d26cd585e38038d399d7e65706"
 uuid = "1082639a-0dae-5f34-9b06-72781eeb8cb3"
 version = "1.3.8+0"
 
-[[deps.Xorg_libXfixes_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll"]
-git-tree-sha1 = "75e00946e43621e09d431d9b95818ee751e6b2ef"
-uuid = "d091e8ba-531a-589c-9de9-94069b037ed8"
-version = "6.0.2+0"
-
-[[deps.Xorg_libXi_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libXext_jll", "Xorg_libXfixes_jll"]
-git-tree-sha1 = "a376af5c7ae60d29825164db40787f15c80c7c54"
-uuid = "a51aa0fd-4e3c-5386-b890-e753decda492"
-version = "1.8.3+0"
-
-[[deps.Xorg_libXinerama_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libXext_jll"]
-git-tree-sha1 = "0ba01bc7396896a4ace8aab67db31403c71628f4"
-uuid = "d1454406-59df-5ea1-beac-c340f2130bc3"
-version = "1.1.7+0"
-
-[[deps.Xorg_libXrandr_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libXext_jll", "Xorg_libXrender_jll"]
-git-tree-sha1 = "6c174ef70c96c76f4c3f4d3cfbe09d018bcd1b53"
-uuid = "ec84b674-ba8e-5d96-8ba1-2a689ba10484"
-version = "1.5.6+0"
-
 [[deps.Xorg_libXrender_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll"]
 git-tree-sha1 = "7ed9347888fac59a618302ee38216dd0379c480d"
@@ -2608,24 +3133,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libXau_jll", "Xorg_libXdmcp_j
 git-tree-sha1 = "bfcaf7ec088eaba362093393fe11aa141fa15422"
 uuid = "c7cfdc94-dc32-55de-ac96-5a1b8d977c5b"
 version = "1.17.1+0"
-
-[[deps.Xorg_libxkbfile_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libX11_jll"]
-git-tree-sha1 = "e3150c7400c41e207012b41659591f083f3ef795"
-uuid = "cc61e674-0454-545c-8b26-ed2c68acab7a"
-version = "1.1.3+0"
-
-[[deps.Xorg_xkbcomp_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libxkbfile_jll"]
-git-tree-sha1 = "801a858fc9fb90c11ffddee1801bb06a738bda9b"
-uuid = "35661453-b289-5fab-8a00-3d9160c6a3a4"
-version = "1.4.7+0"
-
-[[deps.Xorg_xkeyboard_config_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_xkbcomp_jll"]
-git-tree-sha1 = "00af7ebdc563c9217ecc67776d1bbf037dbcebf4"
-uuid = "33bec58e-1273-512f-9401-5d533626f822"
-version = "2.44.0+0"
 
 [[deps.Xorg_xtrans_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2666,12 +3173,6 @@ version = "0.17.4+0"
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
 version = "5.15.0+0"
-
-[[deps.libdecor_jll]]
-deps = ["Artifacts", "Dbus_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pango_jll", "Wayland_jll", "xkbcommon_jll"]
-git-tree-sha1 = "9bf7903af251d2050b467f76bdbe57ce541f7f4f"
-uuid = "1183f4f0-6f2a-5f1a-908b-139f9cdfea6f"
-version = "0.2.2+0"
 
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -2724,21 +3225,17 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "e7b67590c14d487e734dcb925924c5dc43ec85f3"
 uuid = "dfaa095f-4041-5dcd-9319-2fabd8486b76"
 version = "4.1.0+0"
-
-[[deps.xkbcommon_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libxcb_jll", "Xorg_xkeyboard_config_jll"]
-git-tree-sha1 = "a1fc6507a40bf504527d0d4067d718f8e179b2b8"
-uuid = "d8fb68d0-12a3-5cfd-a85a-d49703b185fd"
-version = "1.13.0+0"
 """
 
 # ╔═╡ Cell order:
 # ╟─f5bc5f70-0a80-11f1-a259-8be415f4d105
 # ╟─6d0c96f2-4dfd-43a1-86af-e6aaa9b04f0c
 # ╟─4b5af7d2-3894-4220-8f2d-dec15268305d
+# ╟─0dc3df3c-0999-4f9c-8e68-4b71a51d00ed
+# ╟─45f0efff-bc20-49d3-8442-3948d82b6441
 # ╟─8b4c2f8f-6027-43f9-8bc2-d2fbd7cbf3ea
 # ╟─c8a756c6-14d3-4bb9-ab4f-e794a0653344
-# ╟─507a59c7-9d1b-4f06-b520-0e6d04fe9f21
+# ╟─1be863ee-0514-4de1-a0c4-9460cf2852c9
 # ╟─a0a819cd-7d17-4d61-a88d-a2a9fdd3e8ab
 # ╟─48a4e303-921c-4b59-93a7-633f2f2cffb8
 # ╟─14b9e9d3-a71b-42a4-9942-94ebfe63ccb4
@@ -2762,6 +3259,18 @@ version = "1.13.0+0"
 # ╟─b0c71984-34cc-4496-a1a9-e2a01ac1dea7
 # ╟─0188a13e-0b79-496c-992b-74227047529f
 # ╟─dcd81bf5-c7e4-4c93-a7f4-6657d638e0b4
-# ╠═34c17de5-576a-40ba-b5a4-afa9ee2d8aef
+# ╟─34c17de5-576a-40ba-b5a4-afa9ee2d8aef
+# ╟─5b23e294-6bf6-439c-84ff-34cf99d31e53
+# ╟─c1feebf7-4384-4196-bede-8f0662f301c4
+# ╟─9ae89154-24de-42b6-81ae-ebb07d6a87ea
+# ╟─9ca2fdcf-5909-4c52-b470-080add85212a
+# ╟─dc173930-d763-4e53-baca-be8779f41614
+# ╟─591e64a6-56d6-4014-8db6-d90274f5216f
+# ╟─2322c0d0-3fa4-47fd-8c3c-905af02461d5
+# ╟─16d9d932-ddf4-4486-8324-ae6dcdf86e18
+# ╟─4365438f-afa6-4478-9d86-6c82545dc84e
+# ╟─f5ef096e-de1f-4299-a8d0-4f9d757f96a2
+# ╟─a1b55842-ef12-44f0-a686-4976cd55765a
+# ╟─7b0f6bf6-eb66-4f1a-bc5c-71cfbe2b0c90
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
