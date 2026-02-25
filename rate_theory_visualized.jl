@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.21
+# v0.20.23
 
 #> [frontmatter]
 #> image = "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fhoomd-blue.readthedocs.io%2Fen%2Fv5.0.1%2F_images%2Ftutorial_01-Introducing-Molecular-Dynamics_02-Initializing-a-Random-System_42_0.png&f=1&nofb=1&ipt=30e3e783029319fc4717b96e151aa316e94577a36ef4c0fe3395c11c3bf3b80a"
@@ -1113,8 +1113,71 @@ $$R_{I_n} = 6\frac{D_0}{d^2}n\exp\left(-\frac{E_{\text{diss}}(n)}{kT}\right) \ta
 
 ## Ostwald ripening
 
+![Ostwal ripening in palladium nanoparticles](https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/TEM_of_Ostwald_ripening_in_Pd_nanoparticles.jpg/500px-TEM_of_Ostwald_ripening_in_Pd_nanoparticles.jpg)
+
+The above image is an example of Ostwald ripening in palladium nanoparticles dissolved in formaldehyde at 6 (a), 24 (b), 48 (c) and 72 hours (d). The small palladium particles are being consumed as the larger ones grow bigger. Taken from [Wikipedia](https://en.wikipedia.org/wiki/Ostwald_ripening)
+
+Ostwald ripening is a phenomena in solid solutions where small particles dissolve and redeposit onto larger particles. The equilibrium size of the particles is determined by the point where growth and dissociation rates are equal. 
+
+Note that the concentration of point defects surrounding a defect cluster is a function of the dissociation energy of point defects from a defect cluster. Larger defect clusters have a higher dissociation energy as a result. While defects are small, the concentration of defects surrounding defect clusters is high, and a gradient develops, causing defects to flow into defect clusters. This causes clusters to grow until equilibrium is reached.
+"""
+
+# ╔═╡ 7b41e299-ec89-45b3-80b5-176b420ddcbd
+md"""
+## Simulations
+
+Here we attempt to simulate defect and vacancy formation, as well as transport and defect clustering. We will simulate a 100x100x100 grid of ferritic (BCC) iron, using Boltzmann distributions to define where vacancies and interstitials form.
+"""
+
+# ╔═╡ a5be93f7-dfc0-46e9-9f9c-7d03ab3059d3
+n = 3; # The cell side length, number of atoms per side.
+
+# ╔═╡ 2e73a6e9-c1cf-472f-b66e-3ddba4663a53
+begin
+	points = Tuple{Float64,Float64,Float64}[]
+
+	for i in 0:n-1
+	    if iseven(i)
+	        xs = 0:n
+	        ys = 0:n
+	    else
+	        xs = 0.5:1:(n - 0.5)
+	        ys = 0.5:1:(n - 0.5)
+	    end
+	
+	    append!(points, [(x, y, i) for x in xs, y in ys])
+		
+	end
+end
+
+# ╔═╡ db2d6c1f-02e5-4bc4-b4b7-42958eee45b2
 
 
+# ╔═╡ 95bb3ac1-f4a1-40eb-9cc2-8f73692ea56c
+begin
+	function plot_iron()
+		if wglmakie
+			WGLMakie.activate!()
+		else 
+			CairoMakie.activate!()
+		end
+		
+		fig = Figure()
+		ax = Axis3(fig[1,1])
+
+		scatter!(ax, points)
+		scatter!(ax, [1], [0.75], [2])
+			
+		fig
+	end
+	plot_iron()
+end
+
+# ╔═╡ dec96e69-d0bb-4e82-aebe-0b1385c8d525
+md"""
+# Void Nucleation Theory
+
+Now that we have a foundation in rate theory, we can begin to develop void nucleation theory. Void nucleation theory describes the radiation-induced formation of voids in materials. It first emerged with a paper published by Joseph L. Katz and Harmut Wiedersich in 1971 ([Nucleation of Voids in Materials Supersaturated with Vacancies and Interstitials ](https://doi.org/10.1063/1.1676236)).
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -3272,5 +3335,11 @@ version = "4.1.0+0"
 # ╟─f5ef096e-de1f-4299-a8d0-4f9d757f96a2
 # ╟─a1b55842-ef12-44f0-a686-4976cd55765a
 # ╟─7b0f6bf6-eb66-4f1a-bc5c-71cfbe2b0c90
+# ╠═7b41e299-ec89-45b3-80b5-176b420ddcbd
+# ╠═a5be93f7-dfc0-46e9-9f9c-7d03ab3059d3
+# ╠═2e73a6e9-c1cf-472f-b66e-3ddba4663a53
+# ╠═db2d6c1f-02e5-4bc4-b4b7-42958eee45b2
+# ╠═95bb3ac1-f4a1-40eb-9cc2-8f73692ea56c
+# ╠═dec96e69-d0bb-4e82-aebe-0b1385c8d525
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
